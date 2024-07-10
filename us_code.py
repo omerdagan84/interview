@@ -14,12 +14,14 @@ struct data_t {
     u32 pid;
     u64 ts;
     char comm[TASK_COMM_LEN];
+    char op[6];
 };
+
 // define and name the output channel
 BPF_PERF_OUTPUT(events);
 
 // define the function to be linked to the kprobe
-int hello(struct pt_regs *ctx) {
+int hello_write(struct pt_regs *ctx) {
     // create the data structure
     struct data_t data = {};
 
@@ -33,6 +35,9 @@ int hello(struct pt_regs *ctx) {
     data.ts = bpf_ktime_get_ns();
     // get process name
     bpf_get_current_comm(&data.comm, sizeof(data.comm));
+    // set the OP (read/write)
+    char write_op[] = "write";
+    bpf_probe_read_str(&data.op, sizeof(data.op), write_op);
 
     // submit the data structur to the output channel for the User-space to read
     events.perf_submit(ctx, &data, sizeof(data));
@@ -41,14 +46,16 @@ int hello(struct pt_regs *ctx) {
 }
 """
 
-# load BPF program
+# load the BPF program to the kernel
 b = BPF(text=prog)
-b.attach_kprobe(event=b.get_syscall_fnname("write"), fn_name="hello")
 
-# header
+# attach the program to the kprobe
+b.attach_kprobe(event=b.get_syscall_fnname("write"), fn_name="hello_write")
+
+# print out the header
 print("%-18s %-16s %-6s %s" % ("TIME(s)", "COMM", "PID", "MESSAGE"))
 
-# process event
+# print the event
 start = 0
 def print_event(cpu, data, size):
     global start
@@ -56,8 +63,7 @@ def print_event(cpu, data, size):
     if start == 0:
             start = event.ts
     time_s = (float(event.ts - start)) / 1000000000
-    printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid,
-        b"Hello, perf_output!"))
+    printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid, event.op))
 
 # loop with callback to print_event
 b["events"].open_perf_buffer(print_event)
