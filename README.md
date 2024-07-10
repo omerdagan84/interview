@@ -24,14 +24,16 @@ Optional/Advantage
 * https://www.brendangregg.com/blog/2019-01-01/learn-ebpf-tracing.html
 
 ## repository contents
+```
 ├── commands.txt
 ├── README.md
 ├── run_instructions.txt
 └── us_code.py
-* commands.txt - a text helper file to list some commands learnt in the tutorial
-* README.md - this text file
-* run_instructions.txt - a text helper file that contains the instructions and prerequisists needed to run the program
-* us_code.py - the program file to be run using python
+```
+* `commands.txt` - a text helper file to list some commands learnt in the tutorial
+* `README.md` - this text file
+* `run_instructions.txt` - a text helper file that contains the instructions and prerequisists needed to run the program
+* `us_code.py` - the program file to be run using python
 
 ## implementation notes
 * I decided to use python as the user-space code base due to it's relativly low ramp-up time
