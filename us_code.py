@@ -6,7 +6,7 @@ from bcc import BPF
 from bcc.utils import printb
 
 # create the BPF program to run in the kernel space
-prog = """
+bpf_prog = """
 #include <linux/sched.h>
 
 // the data_t struct will be used to transfer information from the kernel space to user-space
@@ -18,10 +18,10 @@ struct data_t {
 };
 
 // define and name the output channel
-BPF_PERF_OUTPUT(events);
+BPF_PERF_OUTPUT(event_buffer);
 
 // define the function to be linked to the kprobe for write operation
-int hello_write(struct pt_regs *ctx) {
+int op_write(struct pt_regs *ctx) {
     // create the data structure
     struct data_t data = {};
 
@@ -40,13 +40,13 @@ int hello_write(struct pt_regs *ctx) {
     bpf_probe_read_str(&data.op, sizeof(data.op), write_op);
 
     // submit the data structur to the output channel for the User-space to read
-    events.perf_submit(ctx, &data, sizeof(data));
+    event_buffer.perf_submit(ctx, &data, sizeof(data));
 
     return 0;
 }
 
 // define the function to be linked to the kprobe for read operation
-int hello_read(struct pt_regs *ctx) {
+int op_read(struct pt_regs *ctx) {
     // create the data structure
     struct data_t data = {};
 
@@ -65,18 +65,18 @@ int hello_read(struct pt_regs *ctx) {
     bpf_probe_read_str(&data.op, sizeof(data.op), read_op);
 
     // submit the data structur to the output channel for the User-space to read
-    events.perf_submit(ctx, &data, sizeof(data));
+    event_buffer.perf_submit(ctx, &data, sizeof(data));
 
     return 0;
 }
 """
 
 # load the BPF program to the kernel
-b = BPF(text=prog)
+bpf_obj = BPF(text=bpf_prog)
 
 # attach the program to the kprobe
-b.attach_kprobe(event=b.get_syscall_fnname("write"), fn_name="hello_write")
-b.attach_kprobe(event=b.get_syscall_fnname("read"), fn_name="hello_read")
+bpf_obj.attach_kprobe(event=bpf_obj.get_syscall_fnname("write"), fn_name="op_write")
+bpf_obj.attach_kprobe(event=bpf_obj.get_syscall_fnname("read"), fn_name="op_read")
 
 # print out the header
 print("%-18s %-16s %-6s %s" % ("TIME(s)", "COMM", "PID", "MESSAGE"))
@@ -85,21 +85,21 @@ print("%-18s %-16s %-6s %s" % ("TIME(s)", "COMM", "PID", "MESSAGE"))
 start = 0
 def print_event(cpu, data, size):
     global start
-    event = b["events"].event(data)
+    event = bpf_obj["event_buffer"].event(data)
     if start == 0:
             start = event.ts
     time_s = (float(event.ts - start)) / 1000000000
     if event.op.decode('utf-8') == "write":
         printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid,
-                                           b"event sys_write was called"))
+                                           b"hello sys_write was called"))
     elif event.op.decode('utf-8') == "read":
         printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid,
-                                           b"event sys_read was called"))
+                                           b"hello sys_read was called"))
 
 # loop with callback to print_event
-b["events"].open_perf_buffer(print_event)
+bpf_obj["event_buffer"].open_perf_buffer(print_event)
 while 1:
     try:
-        b.perf_buffer_poll()
+        bpf_obj.perf_buffer_poll()
     except KeyboardInterrupt:
         exit()
