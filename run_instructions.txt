@@ -1,4 +1,10 @@
 # run instructions
+## run system description
+Lenove ThinkPad
+OS: Ubuntu 20.04
+Kernel: 5.15.0-107-generic
+Arch: x86_64
+
 ## prerequisists
 install the needed dependencies for the project
 ```
