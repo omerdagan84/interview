@@ -1,13 +1,68 @@
 #!/usr/bin/python
-# Copyright (c) PLUMgrid, Inc.
-# Licensed under the Apache License, Version 2.0 (the "License")
-
-# run in project examples directory with:
-# sudo ./hello_world.py"
-# see trace_fields.py for a longer example
+# This source is derived from https://github.com/iovisor/bcc/blob/master/examples/tracing/hello_perf_output.py
+# the file is modified by Omer Dagan <omerdagan84@gmail.com>
 
 from bcc import BPF
+from bcc.utils import printb
 
-# This may not work for 4.17 on x64, you need replace kprobe__sys_clone with kprobe____x64_sys_clone
-BPF(text='int kprobe__sys_read(void *ctx) { bpf_trace_printk("sys_read was called\\n"); return 0; }').trace_print()
-BPF(text='int kprobe__sys_write(void *ctx) { bpf_trace_printk("sys_write was called\\n"); return 0; }').trace_print()
+# create the BPF program to run in the kernel space
+prog = """
+#include <linux/sched.h>
+
+// the data_t struct will be used to transfer information from the kernel space to user-space
+struct data_t {
+    u32 pid;
+    u64 ts;
+    char comm[TASK_COMM_LEN];
+};
+// define and name the output channel
+BPF_PERF_OUTPUT(events);
+
+// define the function to be linked to the kprobe
+int hello(struct pt_regs *ctx) {
+    // create the data structure
+    struct data_t data = {};
+
+    // ignore calls to root processes
+     if (bpf_get_current_uid_gid() == 0) {
+        return 0;
+    }
+    // get pid tgid data
+    data.pid = bpf_get_current_pid_tgid();
+    // get kernel time
+    data.ts = bpf_ktime_get_ns();
+    // get process name
+    bpf_get_current_comm(&data.comm, sizeof(data.comm));
+
+    // submit the data structur to the output channel for the User-space to read
+    events.perf_submit(ctx, &data, sizeof(data));
+
+    return 0;
+}
+"""
+
+# load BPF program
+b = BPF(text=prog)
+b.attach_kprobe(event=b.get_syscall_fnname("write"), fn_name="hello")
+
+# header
+print("%-18s %-16s %-6s %s" % ("TIME(s)", "COMM", "PID", "MESSAGE"))
+
+# process event
+start = 0
+def print_event(cpu, data, size):
+    global start
+    event = b["events"].event(data)
+    if start == 0:
+            start = event.ts
+    time_s = (float(event.ts - start)) / 1000000000
+    printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid,
+        b"Hello, perf_output!"))
+
+# loop with callback to print_event
+b["events"].open_perf_buffer(print_event)
+while 1:
+    try:
+        b.perf_buffer_poll()
+    except KeyboardInterrupt:
+        exit()
