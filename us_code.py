@@ -76,6 +76,7 @@ b = BPF(text=prog)
 
 # attach the program to the kprobe
 b.attach_kprobe(event=b.get_syscall_fnname("write"), fn_name="hello_write")
+b.attach_kprobe(event=b.get_syscall_fnname("read"), fn_name="hello_read")
 
 # print out the header
 print("%-18s %-16s %-6s %s" % ("TIME(s)", "COMM", "PID", "MESSAGE"))
