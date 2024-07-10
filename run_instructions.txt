@@ -1,0 +1,9 @@
+# run instructions
+## prerequisists
+install the needed dependencies for the project
+```
+sudo apt-get install bpfcc-tools
+sudo apt install bpftrace
+sudo apt install linux-tools-common
+sudo apt install linux-tools-generic linux-tools-5.15.0-107-generic
+```
