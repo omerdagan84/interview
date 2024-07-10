@@ -22,3 +22,20 @@ Optional/Advantage
 ## relevant Links
 * https://ebpf.io/labs/
 * https://www.brendangregg.com/blog/2019-01-01/learn-ebpf-tracing.html
+
+## repository contents
+├── commands.txt
+├── README.md
+├── run_instructions.txt
+└── us_code.py
+* commands.txt - a text helper file to list some commands learnt in the tutorial
+* README.md - this text file
+* run_instructions.txt - a text helper file that contains the instructions and prerequisists needed to run the program
+* us_code.py - the program file to be run using python
+
+## implementation notes
+* I decided to use python as the user-space code base due to it's relativly low ramp-up time
+* the C code for the BPF program is embedded within the main source code as text
+* I am passing the operation (read or write) within the data structure passed to the user-space code
+* I have yet to implement a configuration passing between the user-space code to the BPF program due to lack of time
+* I have decided to ignore ops from the root user as my system is quite noisy and there are many concurrent operations

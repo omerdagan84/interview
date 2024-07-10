@@ -13,3 +13,8 @@ sudo apt install bpftrace
 sudo apt install linux-tools-common
 sudo apt install linux-tools-generic linux-tools-5.15.0-107-generic
 ```
+## run the program
+NOTE: the file can be run directly if the system is setup to use python3 by default - if not use the following
+```
+sudo python3 us_code.py
+```
