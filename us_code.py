@@ -20,7 +20,7 @@ struct data_t {
 // define and name the output channel
 BPF_PERF_OUTPUT(events);
 
-// define the function to be linked to the kprobe
+// define the function to be linked to the kprobe for write operation
 int hello_write(struct pt_regs *ctx) {
     // create the data structure
     struct data_t data = {};
@@ -38,6 +38,31 @@ int hello_write(struct pt_regs *ctx) {
     // set the OP (read/write)
     char write_op[] = "write";
     bpf_probe_read_str(&data.op, sizeof(data.op), write_op);
+
+    // submit the data structur to the output channel for the User-space to read
+    events.perf_submit(ctx, &data, sizeof(data));
+
+    return 0;
+}
+
+// define the function to be linked to the kprobe for read operation
+int hello_read(struct pt_regs *ctx) {
+    // create the data structure
+    struct data_t data = {};
+
+    // ignore calls to root processes
+     if (bpf_get_current_uid_gid() == 0) {
+        return 0;
+    }
+    // get pid tgid data
+    data.pid = bpf_get_current_pid_tgid();
+    // get kernel time
+    data.ts = bpf_ktime_get_ns();
+    // get process name
+    bpf_get_current_comm(&data.comm, sizeof(data.comm));
+    // set the OP (read/write)
+    char read_op[] = "read";
+    bpf_probe_read_str(&data.op, sizeof(data.op), read_op);
 
     // submit the data structur to the output channel for the User-space to read
     events.perf_submit(ctx, &data, sizeof(data));
@@ -63,7 +88,12 @@ def print_event(cpu, data, size):
     if start == 0:
             start = event.ts
     time_s = (float(event.ts - start)) / 1000000000
-    printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid, event.op))
+    if event.op.decode('utf-8') == "write":
+        printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid,
+                                           b"event sys_write was called"))
+    elif event.op.decode('utf-8') == "read":
+        printb(b"%-18.9f %-16s %-6d %s" % (time_s, event.comm, event.pid,
+                                           b"event sys_read was called"))
 
 # loop with callback to print_event
 b["events"].open_perf_buffer(print_event)
