@@ -1,0 +1,39 @@
+$ bpftool prog list
+examin the list of currently loaded eBPF programs
+
+$ bpftool prog show id 72
+$ bpftool prog show name hello
+$ bpftool prog show tag f1db4e564ad5219a
+examin a specific program fro the list above, the program can be referenced by id,name or tag
+
+$ bpftool prog dump xlated name hello
+examin bytecode of the program
+
+$ bpftool map show id $MAP_ID
+show information of the used map
+
+$ bpftool map dump id $MAP_ID
+dump the map content for examination
+
+$ bpftool map lookup id $MAP_ID key 109 0 0 0 0 0 0 0
+printout a specific value from the map, note that you have to specify all 8bytes of the key seperatly - hence the '0's in the command above
+
+$ bpftool map update id $MAP_ID key 5 0 0 0 0 0 0 0 value 1 0 0 0 0 0 0 0
+inject a new key,value pair in to the map
+
+$ bpftool prog load hello.bpf.o /sys/fs/bpf/hello
+load a program into the kernel and create a sysfs entry for it
+
+$ bpftool net attach xdp name hello dev lo
+attach the loaded program to the loopback device
+
+$ bpftool net list
+lists all the prograns linked to net devices
+
+$ bpftool net detach xdp  dev lo
+detach the program from the device
+
+$ rm /sys/fs/bpf/hello
+to remove the program from the kernel
+
+
